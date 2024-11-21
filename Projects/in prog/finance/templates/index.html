@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Portfolio
+{% endblock %}
+
+{% block main %}
+   <h1>{{userInfo["username"]}}'s Portfolio</h1>
+   <table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Cash Balance</th>
+            <th>Grand Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+            <tr>
+                <td>{{ userInfo["cash"] }} $USD</td>
+                <td>TODO (IN INDEX FUNC)</td>
+            </tr>
+        
+        
+    </tbody>
+</table>
+   <table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Share Name</th>
+            <th>Amount</th>
+            <th>Price (Per)</th>
+            <th>Price (Total)</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+            <tr>
+                {% for s in userTransactionInfo %}
+                <td>{{s["symbol"]}}</td> 
+                <td>TODO AMOUNT (COUNT HOW MANY WE HAVE (USE UNIQUE)</td>
+                <td>{{s["Price"]}}</td>
+                <td>SIMILAR TO AMOUNT, JUST ADD PRICE</td>
+                {% endfor %}
+            </tr>
+        
+        
+    </tbody>
+</table>
+{% endblock %}
