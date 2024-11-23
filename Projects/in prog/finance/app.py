@@ -98,7 +98,24 @@ def buy():
 @app.route("/history")
 @login_required
 def history():
-    """Show history of transactions"""
+    """
+    
+    userInfo = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    userTransactionInfo = db.execute("SELECT * FROM transactions WHERE user_id =  ? ", (user_id,)).fetchall()
+
+
+    pseudocode
+    1) Retreive users and user id
+    2) query db (transactions) for amount in stock and purchase price (include current price too)
+    3) jinja for loop: (not in order)
+        symbol
+        purchase amount
+        date and time
+        
+        
+    
+    """
+    
     return apology("TODO")
 
 
