@@ -1,18 +1,17 @@
 {% extends "layout.html" %}
 
 {% block title %}
-    Buy
+    Log In
 {% endblock %}
 
 {% block main %}
     <form action="/buy" method="post">
         <div class="mb-3">
-            <h3>Symbol</h3>
-            <input autocomplete="off" autofocus class="form-control mx-auto w-auto" name="s_symbol" placeholder="Symbol (e.g. NFLX)" type="text" required>
-            <h3>Amount</h3>
-            <input autocomplete="off" autofocus class="form-control mx-auto w-auto" name="s_amount"type="number" required>
+            <input autocomplete="off" autofocus="" class="form-control mx-auto w-auto" id="symbol" name="symbol" placeholder="Symbol" type="text">
         </div>
-        
+        <div class="mb-3">
+            <input autocomplete="off" class="form-control mx-auto w-auto" min="1" name="shares" placeholder="Shares" type="number">
+        </div>
         <button class="btn btn-primary" type="submit">Buy</button>
     </form>
 {% endblock %}

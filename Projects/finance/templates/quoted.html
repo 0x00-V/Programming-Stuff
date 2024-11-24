@@ -1,29 +1,9 @@
 {% extends "layout.html" %}
 
 {% block title %}
-    Quoted
+    Log In
 {% endblock %}
 
 {% block main %}
-    <h2>Stock Quote</h2>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Price</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% if stock_quote %}
-                <tr>
-                    <td>{{ stock_quote["name"] | truncate(20)}}</td> 
-                    <td>{{ stock_quote["price"]}}</td> 
-                </tr>
-            {% else %}
-                <tr>
-                    <td colspan="2">No stock data available</td>
-                </tr>
-            {% endif %}
-        </tbody>
-    </table>
+    <p>A share of {{ stock_quote["name"]}} ({{stock_quote["symbol"]}}) costs {{stock_quote["price"] | usd}}</p>
 {% endblock %}

@@ -5,13 +5,14 @@ from flask import Flask, flash, redirect, render_template, request, session
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from helpers import apology, login_required, lookup, usd
+from helpers import apology, login_required, lookup, usd, is_int
 
 app = Flask(__name__)
 app.jinja_env.filters["usd"] = usd
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+
 
 def connectDB():
     db = sqlite3.connect("finance.db")
@@ -39,13 +40,16 @@ def logout():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-
-        if(request.form.get("password") != request.form.get("password-c") or request.form.get("username") == "" or request.form.get("password") == "" or request.form.get("password-c") == ""):
+        if (request.form.get("password") != request.form.get("confirmation") or request.form.get("username") == "" or request.form.get("password") == "" or request.form.get("password-c") == ""):
             return apology("Passwords do not match!")
-
         db = connectDB()
         uname = request.form.get("username")
-        hashedPassword = generate_password_hash(request.form.get("password"), method='scrypt', salt_length=16)
+        user = db.execute("SELECT * FROM users WHERE username = ?", (uname,)).fetchone()
+        if user:
+            db.close()
+            return apology("Username taken!")
+        hashedPassword = generate_password_hash(
+            request.form.get("password"), method='scrypt', salt_length=16)
         db.execute("INSERT INTO users (username, hash) VALUES (?, ?)", (uname, hashedPassword))
         db.commit()
         db.close()
@@ -53,7 +57,7 @@ def register():
         return redirect("/")
     else:
         return render_template("register.html")
-    
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -64,7 +68,8 @@ def login():
         elif not request.form.get("password"):
             return apology("must provide password", 403)
         db = connectDB()
-        rows = db.execute("SELECT * FROM users WHERE username = ?", (request.form.get("username"),)).fetchall()
+        rows = db.execute("SELECT * FROM users WHERE username = ?",
+                          (request.form.get("username"),)).fetchall()
         db.close()
         if len(rows) != 1 or not check_password_hash(rows[0]["hash"], request.form.get("password")):
             return apology("invalid username and/or password", 403)
@@ -72,7 +77,7 @@ def login():
         return redirect("/")
     else:
         return render_template("login.html")
-    
+
 
 @app.route("/change_password", methods=["GET", "POST"])
 @login_required
@@ -92,9 +97,7 @@ def change_password():
             return apology("New password cannot be blank", 403)
         if new_password != confirm_password:
             return apology("New passwords do not match", 403)
-
         hashed_password = generate_password_hash(new_password, method='scrypt', salt_length=16)
-        
         db = connectDB()
         db.execute("UPDATE users SET hash = ? WHERE id = ?", (hashed_password, user_id))
         db.commit()
@@ -114,7 +117,7 @@ def index():
         userInfo = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         userShares = db.execute(
             "SELECT symbol, SUM(shares) AS total_shares "
-            "FROM transactions WHERE user_id = ? GROUP BY symbol", 
+            "FROM transactions WHERE user_id = ? GROUP BY symbol",
             (user_id,)
         ).fetchall()
         portfolio_value = 0
@@ -146,55 +149,54 @@ def index():
 @login_required
 def quote():
     if request.method == "POST":
-        s = request.form.get("s_symbol")
-        results = lookup(s)
-        if results:
-            return render_template("/quoted.html", stock_quote=results)
+        s = request.form.get("symbol")
+        if s == "":
+            return apology("input blank", 400)
+        result = lookup(s)
+        if not result:
+            return apology("Invalid symbol", 400)
         else:
-            flash("Invalid symbol.")
-            return redirect("/quote")
-    return render_template("quote.html")
+            return render_template("/quoted.html", stock_quote=result)
+    else:
+        return render_template("quote.html")
 
 
 @app.route("/buy", methods=["GET", "POST"])
 @login_required
 def buy():
     if request.method == "POST":
-        symbol = request.form.get("s_symbol")
-        if not symbol:
-            return apology("Symbol cannot be blank.")
-        stock = lookup(symbol)
-        if not stock:
-            return apology("Invalid symbol.")
-        share_price = stock["price"]
-        try:
-            shares = int(request.form.get("s_amount"))
-            if shares <= 0:
-                raise ValueError
-        except ValueError:
-            return apology("Invalid number of shares")
-        total = share_price * shares
         db = connectDB()
-        user_id = session["user_id"]
-        user = db.execute("SELECT cash FROM users WHERE id = ?", (user_id,)).fetchone()
-        if not user:
+        symbol = request.form.get("symbol")
+        shares_nbr = request.form.get("shares")
+        if symbol == "":
             db.close()
-            return apology("User not found.")
-        cash = user["cash"]
-        if cash < total:
+            return apology("MISSING SYMBOL", 400)
+        if shares_nbr == "" or shares_nbr.isalpha():
             db.close()
-            return apology("Insufficient funds")
-        db.execute("UPDATE users SET cash = cash - ? WHERE id = ?", (total, user_id))
-        db.execute(
-            "INSERT INTO buy_sell_transactions (user_id, symbol, shares, price, action) VALUES (?, ?, ?, ?, ?)",
-            (user_id, symbol, shares, share_price, 'buy')
-        )
-        db.execute(
-            "INSERT INTO transactions (user_id, symbol, shares, price) VALUES (?, ?, ?, ?)",
-            (user_id, symbol, shares, share_price) 
-        )
-
+            return apology("MISSING SHARES", 400)
+        if not is_int(shares_nbr):
+            db.close()
+            return apology("fractional shares not supported", 400)
+        if int(shares_nbr) <= 0:
+            db.close()
+            return apology("Share number can't be negative or zero!", 400)
+        stock_quote = lookup(symbol)
+        if not stock_quote:
+            db.close()
+            return apology("INVALID SYMBOL", 400)
+        total_cost = int(shares_nbr) * stock_quote["price"]
+        user_cash = db.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
+        if user_cash["cash"] < total_cost:
+            db.close()
+            return apology("CAN'T AFFORD", 400)
+        db.execute("INSERT INTO transactions (user_id, symbol, shares, price) VALUES (?, ?, ?, ?)",
+                   (session["user_id"], stock_quote['symbol'], int(shares_nbr), stock_quote['price']))
+        db.execute("INSERT INTO buy_sell_transactions (user_id, symbol, shares, price, action) VALUES (?, ?, ?, ?, ?)",
+                   (session["user_id"], stock_quote['symbol'], int(shares_nbr), stock_quote['price'], 'buy'))
+        db.execute("UPDATE users SET cash = cash - ? WHERE id = ?",
+                   (total_cost, session["user_id"]))
         db.commit()
+        flash('Bought successfully!')
         db.close()
         return redirect("/")
     else:
@@ -234,16 +236,18 @@ def sell():
         sale_val = stock["price"] * shares_2_sell
         db.execute(
             "INSERT INTO buy_sell_transactions (user_id, symbol, shares, price, action) "
-            "VALUES (?, ?, ?, ?, ?)", 
-            (user_id, symbol, -shares_2_sell, stock["price"], 'sell')  # Insert sell action into buy_sell_transactions
+            "VALUES (?, ?, ?, ?, ?)",
+            # Insert sell action into buy_sell_transactions
+            (user_id, symbol, -shares_2_sell, stock["price"], 'sell')
         )
         db.execute(
             "INSERT INTO transactions (user_id, symbol, shares, price) "
-            "VALUES (?, ?, ?, ?)", 
-            (user_id, symbol, -shares_2_sell, stock["price"])  # Negative shares for sell in transactions
+            "VALUES (?, ?, ?, ?)",
+            # Negative shares for sell in transactions
+            (user_id, symbol, -shares_2_sell, stock["price"])
         )
         db.execute(
-            "UPDATE users SET cash = cash + ? WHERE id = ?", 
+            "UPDATE users SET cash = cash + ? WHERE id = ?",
             (sale_val, user_id)
         )
 
@@ -275,10 +279,10 @@ def history():
         for transaction in user_transactions:
             transaction_history.append({
                 "symbol": transaction["symbol"],
-                "shares": abs(transaction["shares"]), 
+                "shares": abs(transaction["shares"]),
                 "price": transaction["price"],
                 "action": transaction["action"],
-                "timestamp": transaction["timestamp"] 
+                "timestamp": transaction["timestamp"]
             })
         return render_template("history.html", transactions=transaction_history)
     except Exception as e:
@@ -286,5 +290,3 @@ def history():
         return apology("Something went wrong. Please try again later.")
     finally:
         db.close()
-
-
