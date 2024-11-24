@@ -5,7 +5,7 @@
 {% endblock %}
 
 {% block main %}
-   <h1>{{userInfo["username"]}}'s Portfolio</h1>
+   <h1>{{userInfo["username"] | capitalize}}'s Portfolio</h1>
    <table class="table table-striped">
     <thead>
         <tr>
@@ -16,8 +16,8 @@
     <tbody>
         
             <tr>
-                <td>{{ userInfo["cash"] }} $USD</td>
-                <td>TODO (IN INDEX FUNC)</td>
+                <td>{{ userInfo["cash"] | round(2)}} $USD</td>
+                <td>{{ grand_total | usd }}</td>
             </tr>
         
         
@@ -33,17 +33,15 @@
         </tr>
     </thead>
     <tbody>
-        
-            <tr>
-                {% for s in userTransactionInfo %}
-                <td>{{s["symbol"]}}</td> 
-                <td>TODO AMOUNT (COUNT HOW MANY WE HAVE (USE UNIQUE)</td>
-                <td>{{s["Price"]}}</td>
-                <td>SIMILAR TO AMOUNT, JUST ADD PRICE</td>
-                {% endfor %}
-            </tr>
-        
-        
+        {% for s in userTransactionInfo %}
+        <tr>
+            <td>{{ s["symbol"] }}</td>
+            <td>{{ s["shares"] }}</td>
+            <td>{{ s["price"] | usd }}</td>
+            <td>{{ s["total"] | usd }}</td>
+        </tr>
+        {% endfor %}
     </tbody>
+    
 </table>
 {% endblock %}

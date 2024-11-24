@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Sell
+{% endblock %}
+
+{% block main %}
+    <form action="/sell" method="post">
+        <div class="mb-3">
+            <label for="symbol">Select Stock</label>
+            <select name="symbol" id="symbol" class="form-select">
+                {% for s in userTransactionInfo %}
+                    <option value="{{ s['symbol'] }}">
+                        {{ s['symbol'] }} ({{ s['total_shares'] }} shares)
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="shares">Shares to sell</label>
+            <input type="text" id="shares" name="shares" class="form-control" required>
+
+            <button class="btn btn-primary" type="submit">Sell</button>
+        </div>
+    </form>
+{% endblock %}
